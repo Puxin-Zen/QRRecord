@@ -36,7 +36,12 @@
                     'Content-Type': 'application/json'
                 }
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 // Airtable API 返回的记录在 records 数组中
                 qrCodeData = data.records.map(record => ({
@@ -44,6 +49,7 @@
                     name: record.fields.name,          // 假设表中姓名字段名为 name
                     dharmaName: record.fields.dharmaName // 假设表中法名字段名为 dharmaName
                 }));
+                console.log('Cached QR Code Data:', qrCodeData);
             })
             .catch(error => {
                 console.error('请求失败:', error);
@@ -92,8 +98,8 @@
                 const imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
                 const code = jsQR(imageData.data, imageData.width, imageData.height);
                 if (code) {
-                    const numericData = parseInt(code.data, 10);
-                    displayQRCodeInfo(numericData); // 根据 QR 码显示对应的姓名及法名
+                    const qrData = code.data; // 如果 QR 码是字符串类型
+                    displayQRCodeInfo(qrData); // 根据 QR 码显示对应的姓名及法名
                 }
             }
             requestAnimationFrame(scanQRCode);
@@ -122,6 +128,7 @@
     </script>
 </body>
 </html>
+
 
 
 
