@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
@@ -63,7 +64,7 @@
                 const code = jsQR(imageData.data, imageData.width, imageData.height);
                 if (code) {
                     const numericData = parseInt(code.data, 10);
-                    outputData.innerText = QR Code: ${numericData};
+                    outputData.innerText = `QR Code: ${numericData}`;
                     message.innerText = "報到成功！";
                     sendToBackend(numericData); // 发送请求到后端
                 }
@@ -108,3 +109,4 @@
     </script>
 </body>
 </html>
+
