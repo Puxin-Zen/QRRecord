@@ -25,11 +25,9 @@
 
         // 获取 Airtable 数据并缓存
         function cacheQRCodeData() {
-            const airtableBaseId = 'appBI2IdHo162zAoT'; // 替换为您的 Airtable Base ID
-            const tableName = 'Data';   // 替换为您的 Airtable 表名
             const apiToken = 'patyvzWyn8y9gxfay'; // 替换为您的 Airtable Personal Access Token
 
-            fetch(`https://api.airtable.com/v0/${airtableBaseId}/${tableName}`, {
+            fetch(`https://api.airtable.com/v0/appBI2IdHo162zAoT/tblg3BO6OjRNFGKhd`, {, {
                 method: 'GET',
                 headers: {
                     Authorization: `Bearer ${apiToken}`,  // 使用 Bearer Token
