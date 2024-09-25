@@ -14,47 +14,34 @@
 </head>
 <body>
     <h1>QR Code 報到系統</h1>
-    <video id="video" playsinline autoplay muted></video> <!-- 這裡直接加入 autoplay, muted, playsinline -->
+    <video id="video" playsinline></video>
     <canvas id="canvas" style="display:none;"></canvas>
     <input type="text" id="inputField" style="display:none;" />
     <p id="outputData">請掃描 QR Code</p>
     <div id="message"></div>
 
     <script>
-        const video = document.getElementById("video"); // 使用现有的 <video> 元素
+        const video = document.createElement("video");
         const canvasElement = document.getElementById("canvas");
         const canvas = canvasElement.getContext("2d");
         const outputData = document.getElementById("outputData");
         const message = document.getElementById("message");
         const inputField = document.getElementById("inputField");
 
-        const constraints = {
-            video: {
-                facingMode: "environment" // 使用後置攝像頭
+        async function startVideo() {
+            try {
+                // 使用 navigator.mediaDevices.getUserMedia 獲取相機權限
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                video.srcObject = stream;
+                video.setAttribute("playsinline", true); // 防止 iOS safari 自動全屏
+                video.play();
+                requestAnimationFrame(scanQRCode);
+            } catch (err) {
+                console.error("無法打開相機: ", err);
+                alert("請允許網站訪問相機或檢查 HTTPS 設置");
             }
-        };
-
-        // 请求相机权限并启动视频
-        function startVideo() {
-            var promise = navigator.mediaDevices.getUserMedia(constraints);
-            promise
-                .then(function(stream) {
-                    // 当权限被授予时，设置视频流
-                    video.srcObject = stream;
-                    video.setAttribute("playsinline", true);  // 確保iOS不會自動全屏
-                    video.setAttribute("autoplay", true);     // 自動播放視頻
-                    video.setAttribute("muted", true);        // 確保在移動設備上靜音自動播放
-                    video.play();
-                    requestAnimationFrame(scanQRCode);        // 开始扫描 QR code
-                })
-                .catch(function(err) {
-                    // 如果用户拒绝权限或发生错误，处理错误
-                    console.error("無法打開相機: ", err);
-                    alert("請允許網站訪問相機或檢查 HTTPS 設置");
-                });
         }
 
-        // 扫描 QR code 的函数
         function scanQRCode() {
             if (video.readyState === video.HAVE_ENOUGH_DATA) {
                 canvasElement.height = video.videoHeight;
@@ -75,7 +62,7 @@
         // 发送数据到后端
         function sendToBackend(numericData) {
             const currentTime = new Date().toISOString();
-            fetch('AKfycbzwIEO7JVHmvZUlskLykO8Gp1Z3ToIjgH7dqb-VRLKfAKYSxPP2osuPy-tdxZxvc61o', {
+            fetch('https://script.google.com/macros/s/AKfycbzwIEO7JVHmvZUlskLykO8Gp1Z3ToIjgH7dqb-VRLKfAKYSxPP2osuPy-tdxZxvc61o/exec', {  // 确保使用Google Apps Script的部署URL
                 method: 'POST',
                 body: JSON.stringify({
                     qrCode: numericData,
@@ -90,6 +77,12 @@
             .then(data => {
                 if (data.status === 'success') {
                     console.log('成功寫入後台');
+                    // 成功後清空輸入框並更新顯示訊息
+                    inputField.value = "";
+                    setTimeout(() => {
+                        message.innerText = "";
+                        outputData.innerText = "請掃描 QR Code";
+                    }, 1000); // 清空一秒後繼續下一個掃碼
                 } else {
                     console.error('錯誤: ' + data.message);
                 }
@@ -97,18 +90,9 @@
             .catch(error => {
                 console.error('请求失败:', error);
             });
-
-            // 清空輸入框，准备下一个扫描
-            inputField.value = "";
-            setTimeout(() => {
-                message.innerText = "";
-                outputData.innerText = "請掃描 QR Code";
-            }, 1000); // 清空一秒後繼續下一個掃碼
         }
 
-        // 页面加载后启动相机
         startVideo();
     </script>
 </body>
 </html>
-
