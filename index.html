@@ -23,21 +23,27 @@
     <script>
         let qrCodeData = []; // 用来存储 QR 码相关信息
 
-        // 获取 Google Sheets 数据并缓存
+        // 获取 Airtable 数据并缓存
         function cacheQRCodeData() {
-            fetch('https://script.google.com/macros/s/AKfycbxkt8BK_8dKeThzS_9Jcp0rv8G5SwLJB5zVgrbu8A_sseQ74Acw7i_qlV1N6jrwjbBl/exec', {
+            const airtableBaseId = 'appBI2IdHo162zAoT'; // 替换为您的 Airtable Base ID
+            const tableName = 'Data';   // 替换为您的 Airtable 表名
+            const apiToken = 'patyvzWyn8y9gxfay'; // 替换为您的 Airtable Personal Access Token
+
+            fetch(`https://api.airtable.com/v0/${airtableBaseId}/${tableName}`, {
                 method: 'GET',
                 headers: {
+                    Authorization: `Bearer ${apiToken}`,  // 使用 Bearer Token
                     'Content-Type': 'application/json'
                 }
             })
             .then(response => response.json())
             .then(data => {
-                if (data.status === 'success') {
-                    qrCodeData = data.data; // 缓存 QR 码信息
-                } else {
-                    console.error('Error fetching data:', data.message);
-                }
+                // Airtable API 返回的记录在 records 数组中
+                qrCodeData = data.records.map(record => ({
+                    qrCode: record.fields.qrCode,      // 假设表中 QR 码字段名为 qrCode
+                    name: record.fields.name,          // 假设表中姓名字段名为 name
+                    dharmaName: record.fields.dharmaName // 假设表中法名字段名为 dharmaName
+                }));
             })
             .catch(error => {
                 console.error('请求失败:', error);
@@ -88,7 +94,6 @@
                 if (code) {
                     const numericData = parseInt(code.data, 10);
                     displayQRCodeInfo(numericData); // 根据 QR 码显示对应的姓名及法名
-                    sendToBackend(numericData); // 发送 QR 码和时间戳到后端
                 }
             }
             requestAnimationFrame(scanQRCode);
@@ -109,30 +114,6 @@
             }
         }
 
-        // 发送 QR 码和时间戳到后端
-        function sendToBackend(numericData) {
-            const currentTime = new Date().toISOString();
-            fetch('https://script.google.com/macros/s/AKfycbxUZyN5knKfoDCzF7JAzNIKRNXBGzAsodGXy_pKPILwf6OmUkAlwcQs1KdbbQ3fHM0V/exec', {  // 使用Google Apps Script的部署URL
-                method: 'POST',
-                mode: 'no-cors', // 使用 no-cors 模式
-                body: JSON.stringify({
-                    qrCode: numericData,
-                    time: currentTime,
-                    action: 'lock' // 触发lock动作
-                }),
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            // 成功后清空输入框并更新显示信息
-            inputField.value = "";
-            setTimeout(() => {
-                message.innerText = "";
-                outputData.innerText = "請掃描 QR Code";
-            }, 1000); // 清空一秒后继续下一个扫码
-        }
-
         // 页面加载时，获取 QR 码数据并缓存
         window.onload = function() {
             cacheQRCodeData();
@@ -141,5 +122,6 @@
     </script>
 </body>
 </html>
+
 
 
