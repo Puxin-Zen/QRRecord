@@ -75,8 +75,9 @@
         // 发送数据到后端
         function sendToBackend(numericData) {
             const currentTime = new Date().toISOString();
-            fetch('https://script.google.com/macros/s/AKfycbwEacFo2NPpJRbcJbcmJlaPdkwq86oNadTm9-GbEiJrV4e7BIx1T_wwSzXRKz-w1lXp/exec', {  // 确保使用Google Apps Script的部署URL
+            fetch('https://script.google.com/macros/s/AKfycbz3bVIDc5fvreWoD9BldwHDi2F-3F7Oe_CoSu9uF3X4gjH3o4b8kjgMvcGxch8VyTdd/exec', {  // 确保使用Google Apps Script的部署URL
                 method: 'POST',
+                mode: 'no-cors', // 使用 no-cors 模式
                 body: JSON.stringify({
                     qrCode: numericData,
                     time: currentTime,
@@ -85,24 +86,14 @@
                 headers: {
                     'Content-Type': 'application/json'
                 }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    console.log('成功寫入後台');
-                    // 成功後清空輸入框並更新顯示訊息
-                    inputField.value = "";
-                    setTimeout(() => {
-                        message.innerText = "";
-                        outputData.innerText = "請掃描 QR Code";
-                    }, 1000); // 清空一秒後繼續下一個掃碼
-                } else {
-                    console.error('錯誤: ' + data.message);
-                }
-            })
-            .catch(error => {
-                console.error('请求失败:', error);
             });
+
+            // 成功後清空輸入框並更新顯示訊息
+            inputField.value = "";
+            setTimeout(() => {
+                message.innerText = "";
+                outputData.innerText = "請掃描 QR Code";
+            }, 1000); // 清空一秒後繼續下一個掃碼
         }
 
         startVideo();
