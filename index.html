@@ -10,6 +10,12 @@
         video { width: 300px; height: 300px; border: 1px solid black; }
         #message { font-size: 1.5em; color: green; margin-top: 20px; }
         #outputData { margin-top: 20px; font-size: 1.2em; color: blue; }
+        #loading {
+            font-size: 1.5em;
+            color: blue;
+            display: none;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -18,19 +24,23 @@
     <canvas id="canvas" style="display:none;"></canvas>
     <input type="text" id="inputField" style="display:none;" />
     <p id="outputData">請掃描 QR Code</p>
+    <div id="loading">Loading 中...</div> <!-- 加载动画 -->
     <div id="message"></div>
 
     <script>
-        let qrCodeData = []; // 用来存储 QR 码相关信息
+        let qrCodeData = [];
+        let lastScannedCode = null; // 保存上次扫描的QR码
+        let lastScanTime = 0; // 保存上次扫描时间
+        const scanInterval = 1000; // 最小扫描间隔为1秒
 
-        // 获取 Airtable 数据并缓存
         function cacheQRCodeData() {
-            const apiToken = 'patyvzWyn8y9gxfay'; // 替换为您的 Airtable Personal Access Token
+            const apiToken = 'patyvzWyn8y9gxfay';
+            document.getElementById('loading').style.display = 'block'; // 显示加载动画
 
-            fetch(`https://api.airtable.com/v0/appBI2IdHo162zAoT/tblg3BO6OjRNFGKhd`, {
+            fetch(`https://your-firebase-database-url.firebaseio.com/qrcodes.json`, {
                 method: 'GET',
                 headers: {
-                    Authorization: `Bearer ${apiToken}`,  // 使用 Bearer Token
+                    Authorization: `Bearer ${apiToken}`,
                     'Content-Type': 'application/json'
                 }
             })
@@ -41,15 +51,16 @@
                 return response.json();
             })
             .then(data => {
-                // Airtable API 返回的记录在 records 数组中
                 qrCodeData = data.records.map(record => ({
-                    qrCode: record.fields.qrCode,      // 假设表中 QR 码字段名为 qrCode
-                    name: record.fields.name,          // 假设表中姓名字段名为 name
-                    dharmaName: record.fields.dharmaName // 假设表中法名字段名为 dharmaName
+                    qrCode: record.fields.qrCode,
+                    name: record.fields.name,
+                    dharmaName: record.fields.dharmaName
                 }));
+                document.getElementById('loading').style.display = 'none'; // 隐藏加载动画
                 console.log('Cached QR Code Data:', qrCodeData);
             })
             .catch(error => {
+                document.getElementById('loading').style.display = 'none'; // 隐藏加载动画
                 console.error('请求失败:', error);
             });
         }
@@ -59,23 +70,21 @@
             const video = document.getElementById("video");
             const canvasElement = document.getElementById("canvas");
             const canvas = canvasElement.getContext("2d");
-            const outputData = document.getElementById("outputData");
-            const message = document.getElementById("message");
 
             const constraints = {
                 video: {
-                    facingMode: "environment" // 使用後置攝像頭
+                    facingMode: "environment"
                 }
             };
 
             navigator.mediaDevices.getUserMedia(constraints)
                 .then(function(stream) {
                     video.srcObject = stream;
-                    video.setAttribute("playsinline", true);  // 確保iOS不會自動全屏
-                    video.setAttribute("autoplay", true);     // 自動播放視頻
-                    video.setAttribute("muted", true);        // 確保在移動設備上靜音自動播放
+                    video.setAttribute("playsinline", true);
+                    video.setAttribute("autoplay", true);
+                    video.setAttribute("muted", true);
                     video.play();
-                    requestAnimationFrame(scanQRCode);        // 开始扫描 QR code
+                    requestAnimationFrame(scanQRCode);
                 })
                 .catch(function(err) {
                     console.error("無法打開相機: ", err);
@@ -83,7 +92,6 @@
                 });
         }
 
-        // 扫描 QR code 的函数
         function scanQRCode() {
             const video = document.getElementById("video");
             const canvasElement = document.getElementById("canvas");
@@ -95,9 +103,16 @@
                 canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
                 const imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
                 const code = jsQR(imageData.data, imageData.width, imageData.height);
+
                 if (code) {
-                    const qrData = code.data; // 如果 QR 码是字符串类型
-                    displayQRCodeInfo(qrData); // 根据 QR 码显示对应的姓名及法名
+                    const currentTime = new Date().getTime();
+                    if (currentTime - lastScanTime > scanInterval) { // 判断是否超过最小扫描间隔
+                        if (code.data !== lastScannedCode) { // 检查是否为相同QR码
+                            lastScannedCode = code.data;
+                            lastScanTime = currentTime;
+                            displayQRCodeInfo(code.data);
+                        }
+                    }
                 }
             }
             requestAnimationFrame(scanQRCode);
@@ -113,12 +128,11 @@
                 outputData.innerText = `姓名: ${qrInfo.name}，法名: ${qrInfo.dharmaName}`;
                 message.innerText = "報到成功！";
             } else {
-                outputData.innerText = "未找到对应的 QR 码信息";
+                outputData.innerText = "身分驗證無效!";
                 message.innerText = "報到失敗！";
             }
         }
 
-        // 页面加载时，获取 QR 码数据并缓存
         window.onload = function() {
             cacheQRCodeData();
             startVideo();
@@ -126,7 +140,6 @@
     </script>
 </body>
 </html>
-
 
 
 
