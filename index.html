@@ -10,132 +10,93 @@
         video { width: 300px; height: 300px; border: 1px solid black; }
         #message { font-size: 1.5em; color: green; margin-top: 20px; }
         #outputData { margin-top: 20px; font-size: 1.2em; color: blue; }
-        #loading { font-size: 1.2em; color: orange; margin-top: 20px; display: none; } /* 加载中动画 */
     </style>
 </head>
 <body>
     <h1>QR Code 報到系統</h1>
-    <video id="video" playsinline autoplay muted></video>
+    <video id="video" playsinline autoplay muted></video> <!-- 這裡直接加入 autoplay, muted, playsinline -->
     <canvas id="canvas" style="display:none;"></canvas>
+    <input type="text" id="inputField" style="display:none;" />
     <p id="outputData">請掃描 QR Code</p>
     <div id="message"></div>
-    <div id="loading">加載中...</div> <!-- 显示加载动画 -->
 
     <script>
-        let qrCodeData = []; 
-        let lastScannedCode = null; // 上一次扫描的 QR 码
-        let canScan = true; // 是否可以扫描
-        const scanDelay = 1000; // 扫描间隔1秒
+        const video = document.getElementById("video"); // 使用现有的 <video> 元素
+        const canvasElement = document.getElementById("canvas");
+        const canvas = canvasElement.getContext("2d");
+        const outputData = document.getElementById("outputData");
+        const message = document.getElementById("message");
+        const inputField = document.getElementById("inputField");
 
-        // 获取 Airtable 数据并缓存
-        function cacheQRCodeData() {
-            const apiToken = 'patyvzWyn8y9gxfay.8c49b573f45b5cb6e1edede903f58178e36503fa17257db8bb80343b1c94b11f'; 
-            document.getElementById("loading").style.display = "block"; // 显示加载中动画
-
-            fetch('https://api.airtable.com/v0/appBI2IdHo162zAoT/tblg3BO6OjRNFGKhd', {
-                method: 'GET',
-                headers: {
-                    Authorization: `Bearer ${apiToken}`,  
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                qrCodeData = data.records.map(record => ({
-                    qrCode: record.fields.qrCode,
-                    name: record.fields.name,
-                    dharmaName: record.fields.dharmaName
-                }));
-                console.log('Cached QR Code Data:', qrCodeData);
-                document.getElementById("loading").style.display = "none"; // 隐藏加载动画
-            })
-            .catch(error => {
-                console.error('请求失败:', error);
-                document.getElementById("loading").innerText = "加載失敗，請重試!";
-            });
-        }
+        const constraints = {
+            video: {
+                facingMode: "environment" // 使用後置攝像頭
+            }
+        };
 
         // 请求相机权限并启动视频
         function startVideo() {
-            const video = document.getElementById("video");
-            const canvasElement = document.getElementById("canvas");
-            const canvas = canvasElement.getContext("2d");
-
-            const constraints = {
-                video: {
-                    facingMode: "environment" 
-                }
-            };
-
-            navigator.mediaDevices.getUserMedia(constraints)
+            var promise = navigator.mediaDevices.getUserMedia(constraints);
+            promise
                 .then(function(stream) {
+                    // 当权限被授予时，设置视频流
                     video.srcObject = stream;
-                    video.setAttribute("playsinline", true);  
-                    video.setAttribute("autoplay", true);     
-                    video.setAttribute("muted", true);        
+                    video.setAttribute("playsinline", true);  // 確保iOS不會自動全屏
+                    video.setAttribute("autoplay", true);     // 自動播放視頻
+                    video.setAttribute("muted", true);        // 確保在移動設備上靜音自動播放
                     video.play();
-                    requestAnimationFrame(scanQRCode);        
+                    requestAnimationFrame(scanQRCode);        // 开始扫描 QR code
                 })
                 .catch(function(err) {
+                    // 如果用户拒绝权限或发生错误，处理错误
                     console.error("無法打開相機: ", err);
                     alert("請允許網站訪問相機或檢查 HTTPS 設置");
                 });
         }
 
-        // 扫描 QR code
+        // 扫描 QR code 的函数
         function scanQRCode() {
-            const video = document.getElementById("video");
-            const canvasElement = document.getElementById("canvas");
-            const canvas = canvasElement.getContext("2d");
-
-            if (canScan && video.readyState === video.HAVE_ENOUGH_DATA) {
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
                 canvasElement.height = video.videoHeight;
                 canvasElement.width = video.videoWidth;
                 canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
                 const imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
                 const code = jsQR(imageData.data, imageData.width, imageData.height);
                 if (code) {
-                    const qrData = code.data;
-                    if (qrData !== lastScannedCode) {
-                        lastScannedCode = qrData; // 记录当前扫描的 QR 码
-                        displayQRCodeInfo(qrData); // 显示 QR 码信息
-                        canScan = false; // 暂停扫描
-                        setTimeout(() => {
-                            canScan = true; // 一秒后允许下一次扫描
-                        }, scanDelay);
-                    } else {
-                        console.log("重复扫描相同的 QR 码，跳过写入请求");
-                    }
+                    const numericData = parseInt(code.data, 10);
+                    outputData.innerText = `QR Code: ${numericData}`;
+                    message.innerText = "報到成功！";
+                    sendToBackend(numericData); // 发送请求到后端
                 }
             }
             requestAnimationFrame(scanQRCode);
         }
 
-        // 显示 QR 码对应的姓名和法名
-        function displayQRCodeInfo(qrCode) {
-            const outputData = document.getElementById("outputData");
-            const message = document.getElementById("message");
-            const qrInfo = qrCodeData.find(item => item.qrCode == qrCode);
+        // 发送数据到后端
+        function sendToBackend(numericData) {
+            const currentTime = new Date().toISOString();
+            fetch('https://script.google.com/macros/s/AKfycbz3bVIDc5fvreWoD9BldwHDi2F-3F7Oe_CoSu9uF3X4gjH3o4b8kjgMvcGxch8VyTdd/exec', {  // 确保使用Google Apps Script的部署URL
+                method: 'POST',
+                mode: 'no-cors', // 使用 no-cors 模式
+                body: JSON.stringify({
+                    qrCode: numericData,
+                    time: currentTime,
+                    action: 'lock' // 触发lock动作
+                }),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
 
-            if (qrInfo) {
-                outputData.innerText = `姓名: ${qrInfo.name}，法名: ${qrInfo.dharmaName}`;
-                message.innerText = "報到成功！";
-            } else {
-                outputData.innerText = "身分驗證無效!";
-                message.innerText = "報到失敗！";
-            }
+            // 成功後清空輸入框並更新顯示訊息
+            inputField.value = "";
+            setTimeout(() => {
+                message.innerText = "";
+                outputData.innerText = "請掃描 QR Code";
+            }, 1000); // 清空一秒後繼續下一個掃碼
         }
 
-        // 页面加载时，获取 QR 码数据并缓存
-        window.onload = function() {
-            cacheQRCodeData();
-            startVideo();
-        };
+        startVideo();
     </script>
 </body>
 </html>
